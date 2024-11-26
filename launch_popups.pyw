@@ -4,7 +4,7 @@ import json
 from backups.add_image import rescale_img
 import threading
 from img_appender import Img_appender
-import ctypes, os
+import os
 from keyboard import is_pressed
 
 # improved chatgpt iteration
@@ -37,108 +37,90 @@ class Popup:
 
 
 class Popup_container:
-    def __init__(self, root):
+    def __init__(self, root, img_json_path):
         self.popups: list[Popup] = []
         self.root = root
+        self.img_json_path = img_json_path
+        self.prev_json = None
+        self.launched_popups = []
 
-    
-    def add_popup(self, img_json_data: dict):
-        pass 
-        # allow a popup to be appended to the background thread
+    def add_popup(self, img_json_obj: dict):
+        added_popup = False
+        # three columns (width 300) on right side of screen
+        valid_x_positions = [775, 775 + 310, 775 + 620] 
 
+        for pos in valid_x_positions:
+            column_space_used = sum(popup.image_data["size"][1] + 5 for popup in self.popups if popup.position[0] == pos)
+            if column_space_used + img_json_obj["size"][1] < 1030:
+                popup = Popup(image_data=img_json_obj, position=[pos, column_space_used])
+                self.popups.append(popup) 
+                added_popup = True
+                break
+        
+        return added_popup
         """
             copy, paste and redesign the create popups functionality by removing the entry_idx loop, then use this function in the create_popups function for every entry
 
             create a function that constantly checks for new json data in data.json and then runs this function
 
-            how this will work
-
+            how this will work:
             user runs the launch popups programme
             user runs the img_appender programme and adds a new image to the json
             launch_popups detects json change, creates and displays a new popup
         """
 
-    def create_popups(self, img_json_data: str):
-        with open(img_json_data, "r") as f:
-            data = json.load(f)
-
-        # three columns (width 300) on right side of screen
-        valid_x_positions = [775, 775 + 310, 775 + 620] 
-        col_idx = 0
-        entry_idx = 0
-    
-        while entry_idx < len(data):
-        
-            column_space_used = sum(popup.image_data["size"][1] + 5 for popup in self.popups if popup.position[0] == valid_x_positions[col_idx])
-            
-            # print("col ", col_idx, " space used ", column_space_used + data[entry_idx]["size"][1], "with", data[entry_idx])
-            # if combined height of column popups and current popup > screen height - approx desktop nav height
-            if column_space_used + data[entry_idx]["size"][1] > 1030: 
-                
-                # check if popup has space to fit on screen
-                space_left_for_popup = False
-
-                for i in range(3):
-                    column_space_used = sum(popup.image_data["size"][1] + 5 for popup in self.popups if popup.position[0] == valid_x_positions[i])
-                    if column_space_used + data[entry_idx]["size"][1] < 1030:
-                        space_left_for_popup = True
-                        break
-
-                # use current entry in next iteration, next column because there is space left for curr popup on screen    
-                if space_left_for_popup: entry_idx -= 1
-                #else: print("can't fit ", data[entry_idx], "it takes up too much space |", "space used:", column_space_used + data[entry_idx]["size"][1], "max space: 1030")
-
-            else:
-                # instantiate popup, position is below other popups in current column
-                popup = Popup(image_data=data[entry_idx], position=[valid_x_positions[col_idx], column_space_used])
-                self.popups.append(popup)
-                
-            # rotates between columns
-            col_idx = (col_idx + 1) % len(valid_x_positions)
-            
-            entry_idx += 1
+    def create_popups(self):
+        data = self.get_img_data()
+       
+        for entry_idx in range(len(data)):
+            self.add_popup(data[entry_idx])
     
     def check_for_esc(self):
-        if is_pressed("ctrl+shift+alt+p"):
-            exit()
-        
+        if is_pressed("ctrl+shift+alt+p"):exit()
         self.root.after(ms=1, func=self.check_for_esc)
 
     def launch_popups(self):
+
+        if not self.prev_json:
+            self.prev_json = self.get_img_data_str()
+
+        if self.img_json_updated():
+            new_data = self.get_img_data()
+            
+            for entry in new_data:
+                if entry not in json.loads(self.prev_json):
+                    print("added new popup")
+                    self.add_popup(entry)
+            
+            self.prev_json = json.dumps(new_data)
+        
         for popup in self.popups:
-            popup.launch()
-            popup._window.overrideredirect(True)
+            if popup.image_data["number"] not in self.launched_popups:
+                popup.launch()
+                popup._window.overrideredirect(True)
+                self.launched_popups.append(popup.image_data["number"])
+            
+        
+        self.root.after(ms=100, func=self.launch_popups)
+
+    def get_img_data(self):
+        with open(self.img_json_path, "r") as f:
+            return json.load(f)
+
+    def get_img_data_str(self) -> str:
+        with open(self.img_json_path, "r") as f:
+            data = json.load(f)
+            return json.dumps(data)
+
+    def img_json_updated(self) -> bool:
+        if self.get_img_data_str() != self.prev_json:
+            return True
+        return False
 
 
-
-# HWND_BOTTOM = 1
-# SWP_NOACTIVATE = 0x0010
-# SWP_NOMOVE = 0x0002
-# SWP_NOSIZE = 0x0001
-
-# def set_window_z_order(window):
-     
-#     hwnd = window.winfo_id()  # Get the window handle
-#     ctypes.windll.user32.SetWindowPos(
-#         hwnd,
-#         HWND_BOTTOM,
-#         0, 0, 0, 0,
-#         SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE
-#     )
-    
-
-# def lower_all_windows(root, popups):
-#     # Lower the main Tk window
-#     set_window_z_order(root)
-
-#     # Lower all Toplevel windows
-#     for popup in popups:
-#         set_window_z_order(popup._window)
-      
 
 run_image_appender = 0
 run_popups = 1
-
 
 # Initialize the root window
 root = Tk()
@@ -149,8 +131,8 @@ root.overrideredirect(True)
 if run_popups:
 
     # Start the thread to instantiate popups and place in Popup_container.popups
-    popup_container = Popup_container(root)
-    popup_container.create_popups("data.json")
+    popup_container = Popup_container(root, "data.json")
+    popup_container.create_popups()
     threading.Thread(target=popup_container.launch_popups, daemon=True).start()
     popup_container.check_for_esc()
 
