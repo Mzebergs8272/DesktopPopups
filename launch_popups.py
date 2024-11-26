@@ -118,7 +118,7 @@ run_popups = 1
 root = Tk()
 # Position off-screen
 root.geometry("1x1+-100+-100")
-
+print("change")
 if run_popups:
 
     # Start the thread to instantiate popups and place in Popup_container.popups
