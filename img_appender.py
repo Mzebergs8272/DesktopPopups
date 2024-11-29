@@ -11,6 +11,18 @@ os.chdir(script_dir)    # changes whatever direcetory this file is being run fro
 def rescale_img(img: Image, width) -> Image:
     aspect_ratio = img.width / img.height
     return img.resize((width, int(width / aspect_ratio)))
+    
+
+# puts image data in data.json
+def add_img_data(json_file: str, entry: dict):
+
+    file_data = None
+
+    with open(json_file, mode="r") as f:
+        file_data = json.load(f)
+    with open(json_file, mode="w") as f:
+        file_data.update(entry)
+        json.dump(file_data, f)
 
 
 
@@ -41,36 +53,28 @@ class Img_appender:
                 img_data = json.load(f)
 
         i = 0
-        if img_data: i = img_data[-1]["number"] + 1
+       
+        if img_data: i = int(list(img_data.keys())[-1]) + 1
+        
 
         img_path = fr"images\img{i}.png"
         img_saved = self.save_clipboard_img(img_path)
 
-        entry = [{
+        entry = {str(i): {
                     "number": i,
                     "img_path": img_path,  
-                    "size": [300, rescale_img(Image.open(img_path), 300).height]
-                }]
+                    "size": [300, rescale_img(Image.open(img_path), 300).height],
+                    "position": []
+                }}
         
         if img_saved: 
-            self.append_img_data(entry)
+            add_img_data(self.img_data_file, entry)
             print("saved image", entry)
 
             # img = resize(Image.open(img_path), 500)
             # lbl = Label(root, image=ImageTk.PhotoImage(img))
             # lbl.image = img                                       FIXME
             # lbl.pack()
-    
-    # puts image data in data.json
-    def append_img_data(self, entry: list[dict]):
-
-        file_data = None
-
-        with open(self.img_data_file, mode="r") as f:
-            file_data = json.load(f)
-            
-        with open(self.img_data_file, mode="w") as f:
-            json.dump(file_data + entry, f)
 
     # saves image from clipboard to images folder
     def save_clipboard_img(self, img_path):
@@ -82,7 +86,8 @@ class Img_appender:
         else: 
             print("Your clipboard has no image right now")
             return False
-        
+
+
 if __name__ == "__main__":
     img_appender = Img_appender("data.json")
     img_appender.run()

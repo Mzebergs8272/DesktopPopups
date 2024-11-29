@@ -1,0 +1,14 @@
+TODO add popup deletion functionality in img_appender file:
+    - create a list of images from images folder, for each image: 
+        . display file name and image preview
+        . button to delete file
+TODO add some prompts in img_appender for:
+    image paste success or failure on "paste image" button click
+
+TODO reduce memory usage, the whole app needs to be looked over and redone
+
+TODO change the popups so that they are free to move by the user and arent placed in a specific position.
+    - add the ability to drag popups without using the default window top bar
+
+TODO allow user to specify width of their popup in the img_appender programme
+    

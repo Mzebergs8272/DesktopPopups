@@ -1,11 +1,13 @@
 from tkinter import Tk, Label, Toplevel
 from PIL import ImageTk, Image
 import json
-from backups.add_image import rescale_img
+
 import threading
-from img_appender import Img_appender
+from img_appender import Img_appender, add_img_data, rescale_img
+
 import os
 from keyboard import is_pressed
+from random import randint, choice
 
 # improved chatgpt iteration
 # changed method of threading; created one background thread instead of one thread for each popup
@@ -16,12 +18,14 @@ os.chdir(script_dir)    # changes whatever direcetory this file is being run fro
 
 
 class Popup:
-    def __init__(self, image_data, position):
+    def __init__(self, image_data, position, number):
+        self.number = number
         self.image_data = image_data
         self.position = position
         self._window = None
         self._img = None
         self._photo = None
+        
 
     def launch(self):
         self._window = Toplevel()
@@ -34,7 +38,8 @@ class Popup:
         lbl.image = self._photo  # Retain reference to prevent garbage collection
         lbl.pack()
         
-
+    def get_position(self):
+        return self._window.winfo_rootx(), self._window.winfo_rooty()
 
 class Popup_container:
     def __init__(self, root, img_json_path):
@@ -47,33 +52,32 @@ class Popup_container:
     def add_popup(self, img_json_obj: dict):
         added_popup = False
         # three columns (width 300) on right side of screen
-        valid_x_positions = [775, 775 + 310, 775 + 620] 
+        # valid_x_positions = [775, 775 + 310, 775 + 620] 
+        # for pos in valid_x_positions:
+        #     column_space_used = sum(popup.image_data["size"][1] + 5 for popup in self.popups if popup.position[0] == pos)
+        #     if column_space_used + img_json_obj["size"][1] < 1030:
+        #         popup = Popup(image_data=img_json_obj, position=[pos, column_space_used])
+        #         self.popups.append(popup) 
+        #         added_popup = True
+        #         break
 
-        for pos in valid_x_positions:
-            column_space_used = sum(popup.image_data["size"][1] + 5 for popup in self.popups if popup.position[0] == pos)
-            if column_space_used + img_json_obj["size"][1] < 1030:
-                popup = Popup(image_data=img_json_obj, position=[pos, column_space_used])
-                self.popups.append(popup) 
-                added_popup = True
-                break
+        if img_json_obj["position"]:
+            position = img_json_obj["position"]
+        else:
+            position = [randint(0, 1900 - img_json_obj["size"][0]), randint(0, 1030 - img_json_obj["size"][1])]
+            position = [choice(range(0, 1900 - img_json_obj["size"][0], 50)), choice(range(0, 1030 - img_json_obj["size"][1], 50))] 
+
+        popup = Popup(image_data=img_json_obj, position=position, number=int(img_json_obj["number"]))
+        self.popups.append(popup)
         
         return added_popup
-        """
-            copy, paste and redesign the create popups functionality by removing the entry_idx loop, then use this function in the create_popups function for every entry
-
-            create a function that constantly checks for new json data in data.json and then runs this function
-
-            how this will work:
-            user runs the launch popups programme
-            user runs the img_appender programme and adds a new image to the json
-            launch_popups detects json change, creates and displays a new popup
-        """
 
     def create_popups(self):
         data = self.get_img_data()
        
-        for entry_idx in range(len(data)):
-            self.add_popup(data[entry_idx])
+        for entry in data.values():
+            print("entry", entry)
+            self.add_popup(entry)
     
     def check_for_esc(self):
         if is_pressed("ctrl+shift+alt+p"):exit()
@@ -81,8 +85,7 @@ class Popup_container:
 
     def launch_popups(self):
 
-        if not self.prev_json:
-            self.prev_json = self.get_img_data_str()
+        if not self.prev_json: self.prev_json = self.get_img_data_str()
 
         if self.img_json_updated():
             new_data = self.get_img_data()
@@ -100,8 +103,16 @@ class Popup_container:
                 popup._window.overrideredirect(True)
                 self.launched_popups.append(popup.image_data["number"])
             
-        
         self.root.after(ms=100, func=self.launch_popups)
+    
+    def update_positions(self):
+        print("updating popup position")
+        data = self.get_img_data()
+        for popup in self.popups:
+            data[str(popup.number)]["position"] = popup.get_position()
+            
+            add_img_data(self.img_json_path, {str(popup.number): data[str(popup.number)]})
+        self.root.after(1000, self.update_positions)
 
     def get_img_data(self):
         with open(self.img_json_path, "r") as f:
@@ -116,8 +127,7 @@ class Popup_container:
         if self.get_img_data_str() != self.prev_json:
             return True
         return False
-
-
+    
 
 run_image_appender = 0
 run_popups = 1
@@ -135,6 +145,7 @@ if run_popups:
     popup_container.create_popups()
     threading.Thread(target=popup_container.launch_popups, daemon=True).start()
     popup_container.check_for_esc()
+    root.after(1000, popup_container.update_positions)
 
 if run_image_appender:
     img_appender = Img_appender("data.json")
