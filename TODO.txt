@@ -7,8 +7,8 @@ TODO add some prompts in img_appender for:
 
 TODO reduce memory usage, the whole app needs to be looked over and redone
 
-TODO change the popups so that they are free to move by the user and arent placed in a specific position.
-    - add the ability to drag popups without using the default window top bar
-
 TODO allow user to specify width of their popup in the img_appender programme
     
+
+
+-m "added feature so that json image entries dont need to be removed if their image file is removed"

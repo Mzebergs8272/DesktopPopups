@@ -1,6 +1,6 @@
 # apply changes made to img_appender.py, to img_appender.pyw or vice versa
 
-from tkinter import Tk, Button, Label, BooleanVar
+from tkinter import Tk, Button, Label, BooleanVar, Text, END
 from PIL import ImageTk, Image, ImageGrab
 import json, keyboard as kb, os
 
@@ -30,12 +30,16 @@ class Img_appender:
     def __init__(self, img_data_file):
         self._window = None
         self.img_data_file = img_data_file
+        self.txt_image_width = None
 
     def run(self):
         window = Tk()
         window.geometry("500x500")
         # focus_check = BooleanVar()
         Button(window, command=self.save_img_from_clipboard, text="paste image").pack()
+
+        self.txt_image_width = Text(window, height=2, width=5)
+        self.txt_image_width.pack()
 
         # if focus_check.get():
         #     kb.add_hotkey("ctrl+V", self.save_img_from_clipboard)
@@ -55,15 +59,20 @@ class Img_appender:
         i = 0
        
         if img_data: i = int(list(img_data.keys())[-1]) + 1
-        
 
         img_path = fr"images\img{i}.png"
         img_saved = self.save_clipboard_img(img_path)
 
+        inp = self.txt_image_width.get("1.0", END).strip()
+        if inp and int(inp) > 250:
+            img_width = int(self.txt_image_width.get("1.0", END))
+        else: 
+            img_width = 250
+
         entry = {str(i): {
                     "number": i,
                     "img_path": img_path,  
-                    "size": [300, rescale_img(Image.open(img_path), 300).height],
+                    "size": [img_width, rescale_img(Image.open(img_path), 300).height],
                     "position": []
                 }}
         
@@ -86,6 +95,7 @@ class Img_appender:
         else: 
             print("Your clipboard has no image right now")
             return False
+           
 
 
 if __name__ == "__main__":
